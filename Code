@@ -1,1 +1,448 @@
 
+#include <allegro.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+#define MY_SCREEN_W 1920
+#define MY_SCREEN_H 1080
+#define SPRITE_SIZE 60
+
+typedef struct {
+    BITMAP* frames[10];
+    int numFrames;
+    int currentFrame;
+    float frameTime;
+    float frameDuration;
+} Animation;
+
+typedef struct {
+    int x, y;
+} ImagePosition;
+
+typedef struct {
+    char* filename;
+    BITMAP* image;
+    ImagePosition* positions;
+    int numPositions;
+    float scale;
+} ImageAsset;
+
+typedef struct {
+    int x, y;
+    BITMAP* sprite[8]; // Assurez-vous d'avoir 2 sprites par direction.
+    int currentSprite;
+    int moving; // Pour savoir si le personnage est en mouvement.
+    float moveTimer; // Chronomètre pour l'animation de mouvement.
+    int currentDirection; // Ajouté pour gérer la direction courante du personnage.
+} Character;
+;
+
+
+BITMAP *buffer, *backgroundTile, *backgroundTile2;
+Animation flameAnim, runningAnim;
+ImagePosition kitchenBoysPositions[] = {
+        {670, 360}, {770, 360}, {920, 360}, {1020, 360},
+        {720, 360},
+        {570, 360}, {570, 400}, {570, 440}, {570, 480},
+        {570, 520}, {570, 560}, {570, 600}, {570, 640}, {570, 680}
+};
+
+ImagePosition HornoPositions[] = {
+        {720, 360}, {820, 360}, {970, 360}, {1070, 360}
+};
+
+ImagePosition logoPositions[] = {
+        {1750, 40}
+};
+
+ImagePosition previewboisPositions[] = {
+        {1200, 500}
+};
+
+ImagePosition cornergauchePositions[] = {
+        {566, 340},{1136,640},
+};
+
+ImagePosition cornergauchebasPositions[] = {
+        {570, 710},{1130,410},
+};
+
+ImagePosition cornerdroitPositions[] = {
+        {1100, 340},
+};
+
+ImagePosition cornerdroitbasPositions[] = {
+        {1071, 707},
+};
+
+ImagePosition windowsPositions[] = {
+        {750, 730},{1025,730}
+};
+
+ImagePosition panPositions[] = {
+        {855, 740},
+};
+
+ImagePosition damnPositions[] = {
+        {620, 710}, {670, 710}, {720, 710}, {770, 710}, {820, 710},
+        {970, 710}, {1020, 710}, {1070, 710}
+};
+
+ImagePosition whiteCounterTopPositions[] = {
+        {720, 340}, {820, 340}, {970, 340}, {1010, 340},
+        {600, 340}, {620, 340}, {670, 340}, {770, 340},
+        {870, 340},
+
+
+
+        {710, 740}, {970, 740},
+        {620, 740},  {755, 740},
+};
+
+ImagePosition HeladeraPositions[] = {
+        {870, 347},
+};
+
+ImagePosition boatPositions[] = {
+        {1400, 347},
+};
+ImagePosition murPositions[] = {
+        {570, 385},{570, 465},{570, 545},{570, 625},
+};
+ImagePosition salePositions[] = {
+        {1460, 265},
+};
+
+ImageAsset imageAssets[] = {
+        {"damn.bmp", NULL, damnPositions, sizeof(damnPositions) / sizeof(ImagePosition), 1.0},
+        {"kitchen_boys.bmp", NULL, kitchenBoysPositions, sizeof(kitchenBoysPositions) / sizeof(ImagePosition), 1.0},
+        {"Horno.bmp", NULL, HornoPositions, sizeof(HornoPositions) / sizeof(ImagePosition), 1.0},
+        {"white_counter_top.bmp", NULL, whiteCounterTopPositions, sizeof(whiteCounterTopPositions) / sizeof(ImagePosition),1.1},
+        {"cornergauche.bmp", NULL, cornergauchePositions, sizeof(cornergauchePositions) / sizeof(ImagePosition), 2.1},
+        {"cornerdroit.bmp", NULL, cornerdroitPositions, sizeof(cornerdroitPositions) / sizeof(ImagePosition), 2},
+        {"mur.bmp", NULL, murPositions, sizeof(murPositions) / sizeof(ImagePosition), 2},
+        {"cornergauchebas.bmp", NULL, cornergauchebasPositions, sizeof(cornergauchebasPositions) / sizeof(ImagePosition), 2.05},
+        {"cornerdroitbas.bmp", NULL, cornerdroitbasPositions, sizeof(cornerdroitbasPositions) / sizeof(ImagePosition), 2.1},
+        {"Heladera.bmp", NULL, HeladeraPositions, sizeof(HeladeraPositions) / sizeof(ImagePosition), 0.8},
+        {"previewbois.bmp", NULL, previewboisPositions, sizeof(previewboisPositions) / sizeof(ImagePosition), 1.4},
+
+        {"windows.bmp", NULL, windowsPositions, sizeof(windowsPositions) / sizeof(ImagePosition), 1.5},
+        {"door.bmp", NULL, panPositions, sizeof(panPositions) / sizeof(ImagePosition), 1},
+
+        {"logo.bmp", NULL, logoPositions, sizeof(logoPositions) / sizeof(ImagePosition), 0.2},
+        {"boat.bmp", NULL, boatPositions, sizeof(boatPositions) / sizeof(ImagePosition), 1},
+        {"sale.bmp", NULL, salePositions, sizeof(salePositions) / sizeof(ImagePosition), 1.4}
+
+
+
+};
+int numImageAssets = sizeof(imageAssets) / sizeof(ImageAsset);
+
+BITMAP *buffer, *backgroundTile, *backgroundTile2;
+Animation flameAnim, runningAnim;
+ImagePosition flamePosition = {100, 100}; // Starting position for the flame animation
+
+void initAnimation(Animation* anim, char* filenames[], int numFrames, float frameDuration) {
+    anim->numFrames = numFrames;
+    anim->currentFrame = 0;
+    anim->frameTime = 0.0;
+    anim->frameDuration = frameDuration;
+    for (int i = 0; i < numFrames; ++i) {
+        anim->frames[i] = load_bitmap(filenames[i], NULL);
+        if (!anim->frames[i]) {
+            allegro_message("Failed to load frame: %s\n", filenames[i]);
+            exit(-1);
+        }
+    }
+}
+
+void updateAnimation(Animation* anim, float deltaTime) {
+    anim->frameTime += deltaTime;
+    if (anim->frameTime >= anim->frameDuration) {
+        anim->frameTime = 0;
+        anim->currentFrame = (anim->currentFrame + 1) % anim->numFrames;
+    }
+}
+
+void drawAnimation(Animation* anim, BITMAP* buffer, int x, int y) {
+    draw_sprite(buffer, anim->frames[anim->currentFrame], x, y);
+}
+
+
+
+
+
+
+void loadCharacterSprites(Character *character, char* filenames[], int newSize) {
+    for (int i = 0; i < 8; i++) { // Changez ici pour boucler sur 8 sprites
+        character->sprite[i] = load_bitmap(filenames[i], NULL);
+        if (!character->sprite[i]) {
+            allegro_message("Failed to load sprite: %s\n", filenames[i]);
+            exit(-1);
+        }
+        if (newSize > 0) {
+            BITMAP* temp = create_bitmap(newSize, newSize);
+            stretch_blit(character->sprite[i], temp, 0, 0, character->sprite[i]->w, character->sprite[i]->h, 0, 0, newSize, newSize);
+            destroy_bitmap(character->sprite[i]);
+            character->sprite[i] = temp;
+        }
+    }
+    character->currentSprite = 0;
+    character->moving = 0;
+    character->moveTimer = 0.0;
+}
+
+
+
+
+void moveNPCToTarget(Character *npc, int targetX, int targetY) {
+    // Déplacer le PNJ horizontalement vers la cible
+    if (npc->x < targetX) {
+        npc->x++;
+        npc->currentSprite = 0; // Sprite orienté vers la droite
+    } else if (npc->x > targetX) {
+        npc->x--;
+        npc->currentSprite = 1; // Sprite orienté vers la gauche
+    }
+
+    // Déplacer le PNJ verticalement vers la cible
+    if (npc->y < targetY) {
+        npc->y++;
+        npc->currentSprite = 2; // Sprite orienté vers le bas
+    } else if (npc->y > targetY) {
+        npc->y--;
+        npc->currentSprite = 3; // Sprite orienté vers le haut
+    }
+
+    // Arrêter le PNJ s'il a atteint la cible
+    if (npc->x == targetX && npc->y == targetY) {
+        // Vous pouvez ajouter ici un code pour gérer ce qui se passe lorsque le PNJ atteint sa cible.
+        // Par exemple, vous pourriez vouloir qu'il reste immobile, change de sprite, etc.
+    }
+}
+
+
+
+
+void init() {
+    allegro_init();
+    install_keyboard();
+    set_color_depth(32);
+    int screenWidth = MY_SCREEN_W, screenHeight = MY_SCREEN_H;
+    if (set_gfx_mode(GFX_AUTODETECT_FULLSCREEN, screenWidth, screenHeight, 0, 0) != 0) {
+        allegro_message("Failed to initialize fullscreen mode: %s\n", allegro_error);
+        exit(-1);
+    }
+    buffer = create_bitmap(screenWidth, screenHeight);
+    char* flameFilenames[] = {"flame1.bmp", "flame2.bmp", "flame3.bmp", "flame4.bmp"};
+    initAnimation(&flameAnim, flameFilenames, 4, 0.1);
+    char* runningFilenames[] = {"run1.bmp", "run2.bmp", "run3.bmp"};
+    int numRunningFrames = sizeof(runningFilenames) / sizeof(char*);
+    initAnimation(&runningAnim, runningFilenames, numRunningFrames, 0.1);
+    for (int i = 0; i < numImageAssets; i++) {
+        imageAssets[i].image = load_bitmap(imageAssets[i].filename, NULL);
+        if (!imageAssets[i].image) {
+            allegro_message("Failed to load image: %s\n", imageAssets[i].filename);
+            exit(-1);
+        }
+    }
+    backgroundTile = load_bitmap("background.bmp", NULL);
+    backgroundTile2 = load_bitmap("background2.bmp", NULL);
+    if (!backgroundTile || !backgroundTile2) {
+        allegro_message("Failed to load background images.\n");
+        exit(-1);
+    }
+}
+
+void shutdown() {
+    for (int i = 0; i < numImageAssets; i++) {
+        if (imageAssets[i].image) {
+            destroy_bitmap(imageAssets[i].image);
+        }
+    }
+    for (int i = 0; i < flameAnim.numFrames; ++i) {
+        if (flameAnim.frames[i]) destroy_bitmap(flameAnim.frames[i]);
+    }
+    if (backgroundTile) destroy_bitmap(backgroundTile);
+    if (backgroundTile2) destroy_bitmap(backgroundTile2);
+    if (buffer) destroy_bitmap(buffer);
+    allegro_exit();
+}
+
+void drawScene(BITMAP *buffer, Character *player1, Character *player2, Character *npc) {
+    clear_to_color(buffer, makecol(255, 255, 255));
+    if (backgroundTile2) {
+        stretch_sprite(buffer, backgroundTile2, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+    }
+    if (backgroundTile) {
+        stretch_sprite(buffer, backgroundTile, 620, 360, 540, 400); // Specified dimensions
+    }
+    for (int i = 0; i < numImageAssets; i++) {
+        for (int j = 0; j < imageAssets[i].numPositions; j++) {
+            int posX = imageAssets[i].positions[j].x;
+            int posY = imageAssets[i].positions[j].y;
+            stretch_sprite(buffer, imageAssets[i].image, posX, posY, imageAssets[i].image->w * imageAssets[i].scale, imageAssets[i].image->h * imageAssets[i].scale);
+        }
+    }
+
+
+    // Update and draw animations
+    updateAnimation(&flameAnim, 2);
+    drawAnimation(&flameAnim, buffer, 727, 360);
+    drawAnimation(&flameAnim, buffer, 750, 360);
+    drawAnimation(&flameAnim, buffer, 727, 370);
+    drawAnimation(&flameAnim, buffer, 750, 370);
+
+    drawAnimation(&flameAnim, buffer, 850, 360);
+    drawAnimation(&flameAnim, buffer, 827, 360);
+    drawAnimation(&flameAnim, buffer, 850, 370);
+    drawAnimation(&flameAnim, buffer, 827, 370);
+
+    drawAnimation(&flameAnim, buffer, 1000, 360);
+    drawAnimation(&flameAnim, buffer, 973, 360);
+    drawAnimation(&flameAnim, buffer, 1000, 370);
+    drawAnimation(&flameAnim, buffer, 973, 370);
+
+    drawAnimation(&flameAnim, buffer, 1075, 360);
+    drawAnimation(&flameAnim, buffer, 1099, 360);
+    drawAnimation(&flameAnim, buffer, 1075, 370);
+    drawAnimation(&flameAnim, buffer, 1099, 370);
+
+    updateAnimation(&runningAnim, 3);
+    drawAnimation(&runningAnim, buffer, 640, 350);
+    draw_sprite(buffer, npc->sprite[npc->currentSprite], npc->x, npc->y);
+
+    draw_sprite(buffer, player1->sprite[player1->currentSprite], player1->x, player1->y);
+    draw_sprite(buffer, player2->sprite[player2->currentSprite], player2->x, player2->y);
+
+    // **Remove the duplicate blit call here if exists**
+
+    // Copy buffer to the screen only once after all drawing is complete
+    blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+}
+void updateCharacter(Character *character, int keyLeft, int keyRight, int keyUp, int keyDown) {
+    character->moving = 0; // Supposer d'abord que le personnage ne bouge pas.
+
+    if (key[keyLeft]) {
+        character->x -= 2;
+        character->moving = 1;
+        character->currentDirection = 4; // Assurez-vous que cet index est correct pour la direction gauche.
+    } else if (key[keyRight]) {
+        character->x += 2;
+        character->moving = 1;
+        character->currentDirection = 6; // Assurez-vous que cet index est correct pour la direction droite.
+    } else if (key[keyUp]) {
+        character->y -= 2;
+        character->moving = 1;
+        character->currentDirection = 0; // Assurez-vous que cet index est correct pour la direction haut.
+    } else if (key[keyDown]) {
+        character->y += 2;
+        character->moving = 1;
+        character->currentDirection = 2; // Assurez-vous que cet index est correct pour la direction bas.
+    }
+
+    if (character->moving) {
+        character->moveTimer += 1.0 / 60.0; // Simulation d'un deltaTime si vous appelez cette fonction à chaque frame.
+        if (character->moveTimer >= 0.2) { // Alterne le sprite toutes les 0,2 secondes pour une animation plus fluide.
+            character->moveTimer = 0;
+            character->currentSprite = (character->currentSprite % 2) ? character->currentDirection : character->currentDirection + 1;
+        }
+    } else {
+        // Si le personnage ne bouge pas, on peut choisir de le remettre sur la première frame de sa direction actuelle.
+        character->currentSprite = character->currentDirection;
+    }
+}
+
+
+int main() {
+    init();
+    install_keyboard();
+    set_color_depth(32);
+    if (set_gfx_mode(GFX_AUTODETECT_FULLSCREEN, MY_SCREEN_W, MY_SCREEN_H, 0, 0) != 0) {
+        allegro_message("Failed to initialize graphics mode: %s\n", allegro_error);
+        return -1;
+    }
+    if (install_sound(DIGI_AUTODETECT, MIDI_AUTODETECT, NULL) != 0) {
+        allegro_message("Erreur d'initialisation du système sonore: %s", allegro_error);
+        return -1;
+    }
+    MIDI* backgroundMusic = load_midi("rapso3.mid");
+    if (!backgroundMusic) {
+        allegro_message("Impossible de charger le fichier MIDI.\n");
+        return -1; // ou gérer l'erreur comme vous le souhaitez
+    } else {
+        play_midi(backgroundMusic, 1); // Le deuxième paramètre à 1 signifie que la musique boucle.
+    }
+    // Initialisation du buffer
+    BITMAP *buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
+    if (!buffer) {
+        allegro_message("Failed to create buffer.");
+        return -1;
+    }
+
+    // Initialisation des personnages
+    Character player1, player2, npc;
+
+    // Chemins et noms des fichiers pour les sprites des personnages
+    // Remplacez les noms des fichiers par ceux qui correspondent à vos sprites
+    char* playerFilenames[8] = {
+            "hero_dos.bmp", "hero_dos2.bmp",
+            "hero_devant.bmp", "hero_devant2.bmp",
+
+            "hero_gauche.bmp", "hero_gauche2.bmp",
+            "hero_droit.bmp", "hero_droit2.bmp"
+    };
+
+    // Initialisation et chargement des sprites pour player1 et player2
+    loadCharacterSprites(&player1, playerFilenames, SPRITE_SIZE);
+    player1.x = MY_SCREEN_W / 4;
+    player1.y = MY_SCREEN_H / 2;
+
+    loadCharacterSprites(&player2, playerFilenames, SPRITE_SIZE);
+    player2.x = 3 * MY_SCREEN_W / 4;
+    player2.y = MY_SCREEN_H / 2;
+
+    // Initialisation et chargement des sprites pour le PNJ
+    // Note : Assurez-vous d'avoir les sprites correspondants pour le PNJ
+    player1.currentDirection = 0; // Initialisation à une valeur par défaut.
+    player2.currentDirection = 0; // Idem.
+    npc.currentDirection = 0; // Idem
+    
+    char* npcFilenames[8] = {
+            "hero_dos.bmp", "hero_dos2.bmp",
+            "hero_devant.bmp", "hero_devant2.bmp",
+            "hero_gauche.bmp", "hero_gauche2.bmp",
+            "hero_droit.bmp", "hero_droit2.bmp"
+    };
+    loadCharacterSprites(&npc, npcFilenames, SPRITE_SIZE);
+    npc.x = 500;
+    npc.y = 500;
+
+    // Boucle de jeu
+    int running = 1;
+    while (running) {
+        if (key[KEY_ESC]) break;
+
+        // Mise à jour des personnages
+        updateCharacter(&player1, KEY_A, KEY_D, KEY_W, KEY_S);
+        updateCharacter(&player2, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN);
+        moveNPCToTarget(&npc, 300, 800); // Exemple de cible, ajustez selon besoin
+
+        // Nettoyer le buffer et dessiner la scène
+        clear_to_color(buffer, makecol(255, 255, 255));
+        drawScene(buffer, &player1, &player2, &npc);
+
+        // Afficher le buffer à l'écran
+        blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+        rest(20); // Contrôle de la vitesse de la boucle
+    }
+
+    // Nettoyage
+    shutdown();
+    destroy_bitmap(buffer);
+    return 0;
+}
+END_OF_MAIN()
+
+
