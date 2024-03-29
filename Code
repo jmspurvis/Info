@@ -29,17 +29,28 @@ typedef struct {
 
 typedef struct {
     int x, y;
-    BITMAP* sprite[8]; // Assurez-vous d'avoir 2 sprites par direction.
+    BITMAP* sprite[8];
     int currentSprite;
-    int moving; // Pour savoir si le personnage est en mouvement.
-    float moveTimer; // Chronomètre pour l'animation de mouvement.
-    int currentDirection; // Ajouté pour gérer la direction courante du personnage.
+    int moving;
+    float moveTimer;
+    int currentDirection;
 } Character;
-;
 
+typedef struct {
+    int x, y;
+    int width, height;
+    char *label;
+} Button;
+
+Button myButtons[] = {
+        {100, 100, 200, 50, "Bouton 1"},
+        {100, 200, 200, 50, "Bouton 2"}
+};
+int numButtons = sizeof(myButtons) / sizeof(Button);
 
 BITMAP *buffer, *backgroundTile, *backgroundTile2;
 Animation flameAnim, runningAnim;
+
 ImagePosition kitchenBoysPositions[] = {
         {670, 360}, {770, 360}, {920, 360}, {1020, 360},
         {720, 360},
@@ -92,9 +103,6 @@ ImagePosition whiteCounterTopPositions[] = {
         {720, 340}, {820, 340}, {970, 340}, {1010, 340},
         {600, 340}, {620, 340}, {670, 340}, {770, 340},
         {870, 340},
-
-
-
         {710, 740}, {970, 740},
         {620, 740},  {755, 740},
 };
@@ -106,9 +114,11 @@ ImagePosition HeladeraPositions[] = {
 ImagePosition boatPositions[] = {
         {1400, 347},
 };
+
 ImagePosition murPositions[] = {
         {570, 385},{570, 465},{570, 545},{570, 625},
 };
+
 ImagePosition salePositions[] = {
         {1460, 265},
 };
@@ -125,22 +135,13 @@ ImageAsset imageAssets[] = {
         {"cornerdroitbas.bmp", NULL, cornerdroitbasPositions, sizeof(cornerdroitbasPositions) / sizeof(ImagePosition), 2.1},
         {"Heladera.bmp", NULL, HeladeraPositions, sizeof(HeladeraPositions) / sizeof(ImagePosition), 0.8},
         {"previewbois.bmp", NULL, previewboisPositions, sizeof(previewboisPositions) / sizeof(ImagePosition), 1.4},
-
         {"windows.bmp", NULL, windowsPositions, sizeof(windowsPositions) / sizeof(ImagePosition), 1.5},
         {"door.bmp", NULL, panPositions, sizeof(panPositions) / sizeof(ImagePosition), 1},
-
         {"logo.bmp", NULL, logoPositions, sizeof(logoPositions) / sizeof(ImagePosition), 0.2},
         {"boat.bmp", NULL, boatPositions, sizeof(boatPositions) / sizeof(ImagePosition), 1},
         {"sale.bmp", NULL, salePositions, sizeof(salePositions) / sizeof(ImagePosition), 1.4}
-
-
-
 };
 int numImageAssets = sizeof(imageAssets) / sizeof(ImageAsset);
-
-BITMAP *buffer, *backgroundTile, *backgroundTile2;
-Animation flameAnim, runningAnim;
-ImagePosition flamePosition = {100, 100}; // Starting position for the flame animation
 
 void initAnimation(Animation* anim, char* filenames[], int numFrames, float frameDuration) {
     anim->numFrames = numFrames;
@@ -168,13 +169,8 @@ void drawAnimation(Animation* anim, BITMAP* buffer, int x, int y) {
     draw_sprite(buffer, anim->frames[anim->currentFrame], x, y);
 }
 
-
-
-
-
-
 void loadCharacterSprites(Character *character, char* filenames[], int newSize) {
-    for (int i = 0; i < 8; i++) { // Changez ici pour boucler sur 8 sprites
+    for (int i = 0; i < 8; i++) {
         character->sprite[i] = load_bitmap(filenames[i], NULL);
         if (!character->sprite[i]) {
             allegro_message("Failed to load sprite: %s\n", filenames[i]);
@@ -192,53 +188,52 @@ void loadCharacterSprites(Character *character, char* filenames[], int newSize) 
     character->moveTimer = 0.0;
 }
 
-
-
-
 void moveNPCToTarget(Character *npc, int targetX, int targetY) {
-    // Déplacer le PNJ horizontalement vers la cible
     if (npc->x < targetX) {
         npc->x++;
-        npc->currentSprite = 0; // Sprite orienté vers la droite
+        npc->currentSprite = 0;
     } else if (npc->x > targetX) {
         npc->x--;
-        npc->currentSprite = 1; // Sprite orienté vers la gauche
+        npc->currentSprite = 1;
     }
 
-    // Déplacer le PNJ verticalement vers la cible
     if (npc->y < targetY) {
         npc->y++;
-        npc->currentSprite = 2; // Sprite orienté vers le bas
+        npc->currentSprite = 2;
     } else if (npc->y > targetY) {
         npc->y--;
-        npc->currentSprite = 3; // Sprite orienté vers le haut
-    }
-
-    // Arrêter le PNJ s'il a atteint la cible
-    if (npc->x == targetX && npc->y == targetY) {
-        // Vous pouvez ajouter ici un code pour gérer ce qui se passe lorsque le PNJ atteint sa cible.
-        // Par exemple, vous pourriez vouloir qu'il reste immobile, change de sprite, etc.
+        npc->currentSprite = 3;
     }
 }
-
-
-
 
 void init() {
     allegro_init();
     install_keyboard();
-    set_color_depth(32);
-    int screenWidth = MY_SCREEN_W, screenHeight = MY_SCREEN_H;
-    if (set_gfx_mode(GFX_AUTODETECT_FULLSCREEN, screenWidth, screenHeight, 0, 0) != 0) {
+    install_mouse(); // Assurez-vous que la souris est correctement installée
+    set_color_depth(32); // Définit la profondeur de couleur
+
+    // Configuration du mode graphique
+    if (set_gfx_mode(GFX_AUTODETECT_FULLSCREEN, MY_SCREEN_W, MY_SCREEN_H, 0, 0) != 0) {
         allegro_message("Failed to initialize fullscreen mode: %s\n", allegro_error);
         exit(-1);
     }
-    buffer = create_bitmap(screenWidth, screenHeight);
-    char* flameFilenames[] = {"flame1.bmp", "flame2.bmp", "flame3.bmp", "flame4.bmp"};
-    initAnimation(&flameAnim, flameFilenames, 4, 0.1);
-    char* runningFilenames[] = {"run1.bmp", "run2.bmp", "run3.bmp"};
-    int numRunningFrames = sizeof(runningFilenames) / sizeof(char*);
-    initAnimation(&runningAnim, runningFilenames, numRunningFrames, 0.1);
+
+    // Création du buffer d'affichage
+    buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
+    if (!buffer) {
+        allegro_message("Failed to create buffer.");
+        exit(-1);
+    }
+
+    // Chargement et configuration du curseur de la souris personnalisé
+    BITMAP* mouseCursor = load_bitmap("souris_image.bmp", NULL);
+    if (!mouseCursor) {
+        allegro_message("Failed to load mouse cursor image: souris_image.bmp\n");
+        exit(-1);
+    }
+    set_mouse_sprite(mouseCursor);
+
+    // Préchargement des images pour le jeu
     for (int i = 0; i < numImageAssets; i++) {
         imageAssets[i].image = load_bitmap(imageAssets[i].filename, NULL);
         if (!imageAssets[i].image) {
@@ -246,13 +241,25 @@ void init() {
             exit(-1);
         }
     }
+
+    // Chargement des images de fond
     backgroundTile = load_bitmap("background.bmp", NULL);
     backgroundTile2 = load_bitmap("background2.bmp", NULL);
     if (!backgroundTile || !backgroundTile2) {
         allegro_message("Failed to load background images.\n");
         exit(-1);
     }
+
+    // Initialisation des animations, si nécessaire
+    char* flameFilenames[] = {"flame1.bmp", "flame2.bmp", "flame3.bmp", "flame4.bmp"};
+    initAnimation(&flameAnim, flameFilenames, 4, 0.1);
+    char* runningFilenames[] = {"run1.bmp", "run2.bmp", "run3.bmp"};
+    int numRunningFrames = sizeof(runningFilenames) / sizeof(char*);
+    initAnimation(&runningAnim, runningFilenames, numRunningFrames, 0.1);
+
+    show_mouse(screen); // Affiche le curseur de la souris sur l'écran après la configuration du mode graphique
 }
+
 
 void shutdown() {
     for (int i = 0; i < numImageAssets; i++) {
@@ -269,13 +276,30 @@ void shutdown() {
     allegro_exit();
 }
 
+void drawMenu(BITMAP *buffer) {
+    BITMAP *menuBackground = load_bitmap("backgroundldl.bmp", NULL);
+    if (!menuBackground) {
+        allegro_message("Impossible de charger l'image de fond du menu: backgroundldl.bmp\n");
+        exit(-1);
+    }
+    stretch_sprite(buffer, menuBackground, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+    blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+    destroy_bitmap(menuBackground);
+
+    // Attente d'un clic de souris pour continuer
+    while (!mouse_b & 1) {
+        rest(10); // Réduit la charge CPU
+    }
+}
+
+
 void drawScene(BITMAP *buffer, Character *player1, Character *player2, Character *npc) {
     clear_to_color(buffer, makecol(255, 255, 255));
     if (backgroundTile2) {
         stretch_sprite(buffer, backgroundTile2, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
     }
     if (backgroundTile) {
-        stretch_sprite(buffer, backgroundTile, 620, 360, 540, 400); // Specified dimensions
+        stretch_sprite(buffer, backgroundTile, 620, 360, 540, 400);
     }
     for (int i = 0; i < numImageAssets; i++) {
         for (int j = 0; j < imageAssets[i].numPositions; j++) {
@@ -285,8 +309,6 @@ void drawScene(BITMAP *buffer, Character *player1, Character *player2, Character
         }
     }
 
-
-    // Update and draw animations
     updateAnimation(&flameAnim, 2);
     drawAnimation(&flameAnim, buffer, 727, 360);
     drawAnimation(&flameAnim, buffer, 750, 360);
@@ -315,99 +337,80 @@ void drawScene(BITMAP *buffer, Character *player1, Character *player2, Character
     draw_sprite(buffer, player1->sprite[player1->currentSprite], player1->x, player1->y);
     draw_sprite(buffer, player2->sprite[player2->currentSprite], player2->x, player2->y);
 
-    // **Remove the duplicate blit call here if exists**
-
-    // Copy buffer to the screen only once after all drawing is complete
     blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
 }
-void updateCharacter(Character *character, int keyLeft, int keyRight, int keyUp, int keyDown) {
-    character->moving = 0; // Supposer d'abord que le personnage ne bouge pas.
 
-    if (key[keyLeft]) {
-        character->x -= 2;
-        character->moving = 1;
-        character->currentDirection = 4; // Assurez-vous que cet index est correct pour la direction gauche.
-    } else if (key[keyRight]) {
-        character->x += 2;
-        character->moving = 1;
-        character->currentDirection = 6; // Assurez-vous que cet index est correct pour la direction droite.
-    } else if (key[keyUp]) {
-        character->y -= 2;
-        character->moving = 1;
-        character->currentDirection = 0; // Assurez-vous que cet index est correct pour la direction haut.
-    } else if (key[keyDown]) {
-        character->y += 2;
-        character->moving = 1;
-        character->currentDirection = 2; // Assurez-vous que cet index est correct pour la direction bas.
+void updateCharacter(Character *character, int keyLeft, int keyRight, int keyUp, int keyDown) {
+    character->moving = 0;
+
+    int dx = 0, dy = 0;
+    if (key[keyLeft]) { dx -= 2; character->moving = 1; }
+    if (key[keyRight]) { dx += 2; character->moving = 1; }
+    if (key[keyUp]) { dy -= 2; character->moving = 1; }
+    if (key[keyDown]) { dy += 2; character->moving = 1; }
+
+    character->x += dx;
+    character->y += dy;
+
+    if (dx < 0) {
+        character->currentDirection = 4;
+    } else if (dx > 0) {
+        character->currentDirection = 6;
+    }
+    if (dy < 0) {
+        character->currentDirection = 0;
+    } else if (dy > 0) {
+        character->currentDirection = 2;
     }
 
     if (character->moving) {
-        character->moveTimer += 1.0 / 60.0; // Simulation d'un deltaTime si vous appelez cette fonction à chaque frame.
-        if (character->moveTimer >= 0.2) { // Alterne le sprite toutes les 0,2 secondes pour une animation plus fluide.
+        character->moveTimer += 1.0 / 60.0;
+        if (character->moveTimer >= 0.2) {
             character->moveTimer = 0;
-            character->currentSprite = (character->currentSprite % 2) ? character->currentDirection : character->currentDirection + 1;
+            character->currentSprite = (character->currentSprite % 2 == 0) ? character->currentDirection + 1 : character->currentDirection;
         }
     } else {
-        // Si le personnage ne bouge pas, on peut choisir de le remettre sur la première frame de sa direction actuelle.
         character->currentSprite = character->currentDirection;
     }
 }
-
-
 int main() {
-    init();
-    install_keyboard();
-    set_color_depth(32);
-    if (set_gfx_mode(GFX_AUTODETECT_FULLSCREEN, MY_SCREEN_W, MY_SCREEN_H, 0, 0) != 0) {
-        allegro_message("Failed to initialize graphics mode: %s\n", allegro_error);
-        return -1;
-    }
-    if (install_sound(DIGI_AUTODETECT, MIDI_AUTODETECT, NULL) != 0) {
-        allegro_message("Erreur d'initialisation du système sonore: %s", allegro_error);
-        return -1;
-    }
+    init(); // Initialise Allegro, le mode graphique, charge les images, etc.
+
+    // Charger et jouer la musique de fond
     MIDI* backgroundMusic = load_midi("rapso3.mid");
     if (!backgroundMusic) {
         allegro_message("Impossible de charger le fichier MIDI.\n");
-        return -1; // ou gérer l'erreur comme vous le souhaitez
     } else {
-        play_midi(backgroundMusic, 1); // Le deuxième paramètre à 1 signifie que la musique boucle.
-    }
-    // Initialisation du buffer
-    BITMAP *buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
-    if (!buffer) {
-        allegro_message("Failed to create buffer.");
-        return -1;
+        play_midi(backgroundMusic, 1); // Joue en boucle
     }
 
     // Initialisation des personnages
     Character player1, player2, npc;
 
-    // Chemins et noms des fichiers pour les sprites des personnages
-    // Remplacez les noms des fichiers par ceux qui correspondent à vos sprites
+    // Définition des sprites pour les personnages
     char* playerFilenames[8] = {
             "hero_dos.bmp", "hero_dos2.bmp",
             "hero_devant.bmp", "hero_devant2.bmp",
-
             "hero_gauche.bmp", "hero_gauche2.bmp",
             "hero_droit.bmp", "hero_droit2.bmp"
     };
 
-    // Initialisation et chargement des sprites pour player1 et player2
+    // Chargement des sprites pour player1
     loadCharacterSprites(&player1, playerFilenames, SPRITE_SIZE);
     player1.x = MY_SCREEN_W / 4;
     player1.y = MY_SCREEN_H / 2;
 
+    // Chargement des sprites pour player2
     loadCharacterSprites(&player2, playerFilenames, SPRITE_SIZE);
     player2.x = 3 * MY_SCREEN_W / 4;
     player2.y = MY_SCREEN_H / 2;
 
-    // Initialisation et chargement des sprites pour le PNJ
-    // Note : Assurez-vous d'avoir les sprites correspondants pour le PNJ
-    player1.currentDirection = 0; // Initialisation à une valeur par défaut.
-    player2.currentDirection = 0; // Idem.
-    npc.currentDirection = 0; // Idem
-    
+    // Initialisation des directions
+    player1.currentDirection = 0;
+    player2.currentDirection = 0;
+    npc.currentDirection = 0;
+
+    // Chargement des sprites pour NPC
     char* npcFilenames[8] = {
             "hero_dos.bmp", "hero_dos2.bmp",
             "hero_devant.bmp", "hero_devant2.bmp",
@@ -418,7 +421,9 @@ int main() {
     npc.x = 500;
     npc.y = 500;
 
-    // Boucle de jeu
+    // Affichage du menu et attente d'un clic de souris pour continuer
+    drawMenu(buffer); // La fonction drawMenu() doit être modifiée pour intégrer l'attente d'un clic
+
     int running = 1;
     while (running) {
         if (key[KEY_ESC]) break;
@@ -426,23 +431,24 @@ int main() {
         // Mise à jour des personnages
         updateCharacter(&player1, KEY_A, KEY_D, KEY_W, KEY_S);
         updateCharacter(&player2, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN);
-        moveNPCToTarget(&npc, 300, 800); // Exemple de cible, ajustez selon besoin
+        moveNPCToTarget(&npc, 300, 800); // Assurez-vous que cette logique correspond à ce que vous attendez
 
-        // Nettoyer le buffer et dessiner la scène
+        // Dessin de la scène
         clear_to_color(buffer, makecol(255, 255, 255));
         drawScene(buffer, &player1, &player2, &npc);
 
-        // Afficher le buffer à l'écran
+        // Affichage à l'écran
         blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
 
-        rest(20); // Contrôle de la vitesse de la boucle
+        rest(20); // Pause pour contrôler la vitesse de la boucle
     }
 
-    // Nettoyage
+    // Nettoyage et fermeture
+    if (backgroundMusic) {
+        destroy_midi(backgroundMusic);
+    }
     shutdown();
     destroy_bitmap(buffer);
     return 0;
 }
 END_OF_MAIN()
-
-
