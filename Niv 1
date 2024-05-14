@@ -1,1 +1,1011 @@
-N
+LVL 1
+
+#include <allegro.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+#define MY_SCREEN_W 1920
+#define MY_SCREEN_H 1080
+#define SPRITE_SIZE 100
+
+typedef struct {
+    BITMAP* frames[10];
+    int numFrames;
+    int currentFrame;
+    float frameTime;
+    float frameDuration;
+    int maxIterations; // Nouveau champ pour le nombre maximum d'itérations
+    int currentIteration; // Nouveau champ pour l'itération actuelle
+    int isActive;
+} Animation;
+
+void deleteAnimation(Animation* anim) {
+    anim->isActive = false;
+}
+typedef struct {
+    int game_timer;
+} Game;
+
+typedef struct {
+    int x, y;
+} ImagePosition;
+
+typedef struct {
+    char* filename;
+    BITMAP* image;
+    ImagePosition* positions;
+    int numPositions;
+    float scale;
+} ImageAsset;
+
+
+typedef struct {
+    int x, y; // Position de l'objet
+    BITMAP* sprite; // Sprite de l'objet
+    int isHeld; // Indique si l'objet est tenu par le joueur
+} Item;
+
+
+
+
+
+
+BITMAP *buffer, *backgroundTile, *backgroundTile2;
+Animation flameAnim, runningAnim, burgerAnim,screenAnim;
+
+
+
+
+typedef struct {
+    int x, y;
+    BITMAP* sprite[8];
+    int currentSprite;
+    int moving;
+    float moveTimer;
+    int currentDirection;
+    Item* heldItem;
+
+} Character;
+
+
+
+
+ImagePosition kitchenBoysPositions[] = {
+        {500, 240},
+
+};
+
+ImagePosition HornoPositions[] = {
+        {580, 240}, {983, 240}, {1065, 240}
+};
+
+ImagePosition logoPositions[] = {
+        {1750, 40}
+};
+
+
+
+
+
+
+typedef struct {
+    int x, y, width, height; // Coordonnées et dimensions de la zone d'activation
+} MenuActivationZone;
+
+MenuActivationZone menuActivationZone = { 800, 300, 500, 200};
+
+
+
+
+
+
+typedef struct {
+    int x, y, width, height; // Coordonnées et dimensions de la zone d'activation
+} SettingsActivationZone;
+
+SettingsActivationZone settingsActivationZone = { 800, 500, 500, 200};
+
+
+
+
+
+ImagePosition previewboisPositions[] = {
+        {1200, 400}
+};
+
+ImagePosition cornergauchePositions[] = {
+        {269, 800},
+};
+
+ImagePosition cornergauchebasPositions[] = {
+        {817,240},
+};
+
+ImagePosition cornerdroitPositions[] = {
+        {900, 240},
+};
+
+ImagePosition cornerdroitbasPositions[] = {
+        {900, 247},
+};
+
+ImagePosition windowsPositions[] = {
+        {420, 240},{1025,630}
+};
+
+ImagePosition panPositions[] = {
+        {650, 760},
+};
+
+ImagePosition damnPositions[] = {
+        {0, 900},
+};
+
+ImagePosition tablecentralePositions[] = {
+        {650, 500},
+};
+
+ImagePosition whiteCounterTopPositions[] = {
+        {270, 200},
+};
+
+ImagePosition HeladeraPositions[] = {
+        {742, 210},
+};
+
+ImagePosition boatPositions[] = {
+        {1400, 247},
+};
+
+ImagePosition murPositions[] = {
+        {270, 200},
+};
+
+ImagePosition salePositions[] = {
+        {1460, 165},
+};
+ImagePosition bacpainPositions[] = {
+        {660, 240},
+};
+ImagePosition recettePositions[] = {
+        {1360, 700},
+};
+ImagePosition blindetoilePositions[] = {
+        {1700, 400},{1700, 550},{1700, 700},
+};
+
+ImageAsset imageAssets[] = {
+
+        {"kitchen_boys.bmp", NULL, kitchenBoysPositions, sizeof(kitchenBoysPositions) / sizeof(ImagePosition), 1.67},
+        {"Horno.bmp", NULL, HornoPositions, sizeof(HornoPositions) / sizeof(ImagePosition), 1.6},
+        {"cornergauche.bmp", NULL, cornergauchePositions, sizeof(cornergauchePositions) / sizeof(ImagePosition), 0.6},
+        {"white_counter_top.bmp", NULL, whiteCounterTopPositions, sizeof(whiteCounterTopPositions) / sizeof(ImagePosition),0.85},
+        {"cornerdroit.bmp", NULL, cornerdroitPositions, sizeof(cornerdroitPositions) / sizeof(ImagePosition), 0.4},
+        {"mur.bmp", NULL, murPositions, sizeof(murPositions) / sizeof(ImagePosition), 0.85},
+        {"cornergauchebas.bmp", NULL, cornergauchebasPositions, sizeof(cornergauchebasPositions) / sizeof(ImagePosition), 0.4},
+        {"cornerdroitbas.bmp", NULL, cornerdroitbasPositions, sizeof(cornerdroitbasPositions) / sizeof(ImagePosition), 0.1},
+        {"Heladera.bmp", NULL, HeladeraPositions, sizeof(HeladeraPositions) / sizeof(ImagePosition), 1.2},
+        {"previewbois.bmp", NULL, previewboisPositions, sizeof(previewboisPositions) / sizeof(ImagePosition), 1.4},
+        {"windows.bmp", NULL, windowsPositions, sizeof(windowsPositions) / sizeof(ImagePosition), 0.4},
+        {"door.bmp", NULL, panPositions, sizeof(panPositions) / sizeof(ImagePosition), 1.5},
+        {"logo.bmp", NULL, logoPositions, sizeof(logoPositions) / sizeof(ImagePosition), 0.35},
+        {"boat.bmp", NULL, boatPositions, sizeof(boatPositions) / sizeof(ImagePosition), 1},
+        {"sale.bmp", NULL, salePositions, sizeof(salePositions) / sizeof(ImagePosition), 1.4},
+        {"damn.bmp", NULL, damnPositions, sizeof(damnPositions) / sizeof(ImagePosition), 1.4},
+        {"tablecentrale.bmp", NULL, tablecentralePositions, sizeof(tablecentralePositions) / sizeof(ImagePosition), 0.3},
+        {"bacpain.bmp", NULL, bacpainPositions, sizeof(bacpainPositions) / sizeof(ImagePosition), 0.26},
+        {"recetteburger.bmp", NULL, recettePositions, sizeof(recettePositions) / sizeof(ImagePosition), 0.8},
+        {"blindetoile.bmp", NULL, blindetoilePositions, sizeof(blindetoilePositions) / sizeof(ImagePosition), 0.24}
+};
+int numImageAssets = sizeof(imageAssets) / sizeof(ImageAsset);
+
+
+
+void updateAnimation(Animation* anim, float deltaTime) {
+    anim->frameTime += deltaTime;
+    if (anim->frameTime >= anim->frameDuration) {
+        anim->currentFrame = (anim->currentFrame + 1) % anim->numFrames;
+        anim->frameTime = 0.0;
+
+        // Si on a atteint le nombre maximum d'itérations, on supprime l'animation
+        if (++anim->currentIteration >= anim->maxIterations) {
+            deleteAnimation(anim);
+        }
+    }
+}
+
+void drawAnimation(Animation* anim, BITMAP* buffer, int x, int y, int maxIterations) {
+    anim->maxIterations = maxIterations; // Définir le nombre maximum d'itérations
+    if (anim->currentIteration < anim->maxIterations) {
+        draw_sprite(buffer, anim->frames[anim->currentFrame], x, y);
+    }
+}
+
+void loadCharacterSprites(Character *character, char* filenames[], int newSize) {
+    for (int i = 0; i < 8; i++) {
+        character->sprite[i] = load_bitmap(filenames[i], NULL);
+        if (!character->sprite[i]) {
+            allegro_message("Failed to load sprite: %s\n", filenames[i]);
+            exit(-1);
+        }
+        if (newSize > 0) {
+            BITMAP* temp = create_bitmap(newSize, newSize);
+            stretch_blit(character->sprite[i], temp, 0, 0, character->sprite[i]->w, character->sprite[i]->h, 0, 0, newSize, newSize);
+            destroy_bitmap(character->sprite[i]);
+            character->sprite[i] = temp;
+        }
+    }
+    character->currentSprite = 0;
+    character->moving = 0;
+    character->moveTimer = 0.0;
+    character->heldItem = NULL;
+
+}
+
+
+
+void initAndResizeAnimation(Animation* anim, char* filenames[], int numFrames, float frameDuration, int newSize) {
+    anim->numFrames = numFrames;
+    anim->currentFrame = 0;
+    anim->frameTime = 0.0;
+    anim->frameDuration = frameDuration;
+    for (int i = 0; i < numFrames; ++i) {
+        anim->frames[i] = load_bitmap(filenames[i], NULL);
+        if (!anim->frames[i]) {
+            allegro_message("Failed to load frame: %s\n", filenames[i]);
+            exit(-1);
+        }
+        if (newSize > 0) {
+            BITMAP* temp = create_bitmap(newSize, newSize);
+            stretch_blit(anim->frames[i], temp, 0, 0, anim->frames[i]->w, anim->frames[i]->h, 0, 0, newSize, newSize);
+            destroy_bitmap(anim->frames[i]);
+            anim->frames[i] = temp;
+        }
+    }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Zone de configuration des cordonnees des object pour cela on defini stretch_sprite(buffer, backgroundTile, 290, 220, 940, 650);
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+typedef struct {
+    int x, y, width, height; // Coordonnées et dimensions de la zone d'activation
+} ObjectBin;
+
+ObjectBin objectBinlettue = {350, 210, 100, 100};
+
+
+
+typedef struct {
+    int x, y, width, height; // Coordonnées et dimensions de la zone d'activation
+} Objectpain;
+
+
+
+Objectpain objectpain = {640, 240, 60, 100};
+
+
+
+typedef struct {
+    int x, y, width, height; // Coordonnées et dimensions de la zone d'activation
+} ObjectBintom;
+
+ObjectBintom objectBintom = {840, 210, 70, 100};
+// Définir la zone d'activation du bac à objets
+
+typedef struct {
+    int x, y, width, height; // Coordonnées et dimensions de la zone d'activation
+} Objectrendu;
+
+Objectrendu objectrendu = {1190, 420, 300, 300};
+
+
+
+typedef struct {
+    int x, y, width, height; // Coordonnées et dimensions de la zone d'activation
+} ObjectBinsteack;
+
+ObjectBinsteack objectBinsteack = {765, 210, 70, 100};
+
+
+typedef struct {
+    int x, y, width, height; // Coordonnées et dimensions de la zone d'activation
+} Objecttable1dressage1;
+
+Objecttable1dressage1 objecttable1dressage1 = {600, 370, 300, 450};
+// Définir la zone d'activation du bac à objets
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+void moveNPCToTarget(Character *npc, int targetX, int targetY) {
+    if (npc->x < targetX) {
+        npc->x++;
+        npc->currentSprite = 0;
+    } else if (npc->x > targetX) {
+        npc->x--;
+        npc->currentSprite = 1;
+    }
+
+    if (npc->y < targetY) {
+        npc->y++;
+        npc->currentSprite = 2;
+    } else if (npc->y > targetY) {
+        npc->y--;
+        npc->currentSprite = 3;
+    }
+}
+int collisionMap[MY_SCREEN_H][MY_SCREEN_W];
+BITMAP* casseroleImage = NULL;
+BITMAP* tomateImage = NULL;
+BITMAP* burgerImage = NULL;
+BITMAP* renduImage = NULL;
+BITMAP* etoile1Image = NULL;
+BITMAP* etoile2Image = NULL;
+BITMAP* etoile3Image = NULL;
+BITMAP* painImage = NULL;
+BITMAP* steackImage = NULL;
+BITMAP* table1_dressage1Image = NULL;
+BITMAP* table1_dressage2Image = NULL;
+BITMAP* table1_dressage3Image = NULL;
+BITMAP* table1_dressage4Image = NULL;
+BITMAP* table1_dressage5Image = NULL;
+
+
+void init() {
+    allegro_init();
+    install_keyboard();
+    install_mouse(); // Assurez-vous que la souris est correctement installée
+    set_color_depth(32); // Définit la profondeur de couleur
+    if (install_sound(DIGI_AUTODETECT, MIDI_AUTODETECT, NULL) != 0) {
+        allegro_message("Erreur d'initialisation du système sonore: %s", allegro_error);
+        exit( -1);
+    }
+    // Configuration du mode graphique
+    if (set_gfx_mode(GFX_AUTODETECT_FULLSCREEN, MY_SCREEN_W, MY_SCREEN_H, 0, 0) != 0) {
+        allegro_message("Failed to initialize fullscreen mode: %s\n", allegro_error);
+        exit(-1);
+    }
+
+    table1_dressage1Image = load_bitmap("table1dressage1.bmp", NULL);
+    table1_dressage2Image = load_bitmap("table1dressage2.bmp", NULL);
+    table1_dressage3Image = load_bitmap("table1dressage3.bmp", NULL);
+    table1_dressage4Image = load_bitmap("table1dressage4.bmp", NULL);
+    table1_dressage5Image = load_bitmap("table1dressage5.bmp", NULL);
+    casseroleImage = load_bitmap("casserole.bmp", NULL);
+    tomateImage = load_bitmap("tomate.bmp", NULL);
+    steackImage = load_bitmap("steack.bmp", NULL);
+    painImage = load_bitmap("pain.bmp", NULL);
+    burgerImage = load_bitmap("bigburger.bmp", NULL);
+    etoile1Image = load_bitmap("etoile1.bmp", NULL);
+    etoile2Image = load_bitmap("etoile2.bmp", NULL);
+    etoile3Image = load_bitmap("etoile3.bmp", NULL);
+    renduImage = load_bitmap("rendu.bmp", NULL);
+
+
+    if (!casseroleImage) {
+        allegro_message("Erreur lors du chargement de casserole.bmp\n");
+        exit(-1);
+    }
+    if (!tomateImage) {
+        allegro_message("Erreur lors du chargement de tomate.bmp\n");
+        exit(-1);
+    }
+    if (!renduImage) {
+        allegro_message("Erreur lors du chargement de rendu.bmp\n");
+        exit(-1);
+    }
+    if (!painImage) {
+        allegro_message("Erreur lors du chargement de tomate.bmp\n");
+        exit(-1);
+    }
+    if (!steackImage) {
+        allegro_message("Erreur lors du chargement de steack.bmp\n");
+        exit(-1);
+    }
+
+    buffer = create_bitmap(MY_SCREEN_W, MY_SCREEN_H);
+    if (!buffer) {
+        allegro_message("Failed to create buffer.");
+        exit(-1);
+    }
+
+    // Chargement et configuration du curseur de la souris personnalisé
+
+
+
+
+
+    // Préchargement des images pour le jeu
+    for (int i = 0; i < numImageAssets; i++) {
+        imageAssets[i].image = load_bitmap(imageAssets[i].filename, NULL);
+        if (!imageAssets[i].image) {
+            allegro_message("Failed to load image: %s\n", imageAssets[i].filename);
+            exit(-1);
+        }
+    }
+
+    // Chargement des images de fond
+    backgroundTile = load_bitmap("background.bmp", NULL);
+    backgroundTile2 = load_bitmap("background2.bmp", NULL);
+    if (!backgroundTile || !backgroundTile2) {
+        allegro_message("Failed to load background images.\n");
+        exit(-1);
+    }
+
+    // Initialisation des animations, si nécessaire
+    char* flameFilenames[] = {"flame1.bmp", "flame2.bmp", "flame3.bmp", "flame4.bmp"};
+
+    char* burgerFilenames[] = {"commandeburger1.bmp", "commandeburger2.bmp", "commandeburger3.bmp", "commandeburger4.bmp","commandeburger5.bmp", "commandeburger6.bmp", "commandeburger7.bmp", "commandeburger8.bmp"};
+
+    char* runningFilenames[] = {"run1.bmp", "run2.bmp", "run3.bmp"};
+    int numRunningFrames = sizeof(runningFilenames) / sizeof(char*);
+
+    initAndResizeAnimation(&flameAnim, flameFilenames, 4, 1.5, 25);
+    initAndResizeAnimation(&burgerAnim, burgerFilenames, 8, 100, 150);
+    initAndResizeAnimation(&runningAnim, runningFilenames, numRunningFrames, 1.5, 100);
+    for (int i = 0; i < SCREEN_H; i++) {
+        for (int j = 0; j < SCREEN_W; j++) {
+            collisionMap[i][j] = 0; // Toutes les cellules sont traversables par défaut
+        }
+    }
+    for (int i = 0; i < MY_SCREEN_W; i++) {
+        collisionMap[270][i] = 1;
+    }
+    for (int i = 0; i < MY_SCREEN_W; i++) {
+        collisionMap[800][i] = 1;
+    }
+    for (int i = 0; i < MY_SCREEN_H; i++) {
+        collisionMap[i][360] = 1;
+    }
+    for (int i = 0; i < MY_SCREEN_H; i++) {
+        collisionMap[i][1280] = 1;
+    }
+    for (int i = 600 ; i < 870; i++) {
+        collisionMap[450][i] = 1;
+
+    }
+    for (int i = 600 ; i < 880; i++) {
+        collisionMap[600][i] = 1;
+
+    }
+    for (int i = 450 ; i < 620; i++) {
+        collisionMap[i][600] = 1;
+
+    }
+    for (int i = 450 ; i < 620; i++) {
+        collisionMap[i][880] = 1;
+
+    }
+
+    show_mouse(NULL);
+    show_mouse(screen);
+}
+
+void drawRectangle(int x, int y, int width, int height, int color, int opacity) {
+    BITMAP *rectangle = create_bitmap(width, height);
+    if (!rectangle) {
+        allegro_message("Failed to create bitmap!");
+        return;
+    }
+
+    clear_to_color(rectangle, makecol(0, 0, 0));
+    set_trans_blender(0, 0, 0, opacity);
+    drawing_mode(DRAW_MODE_TRANS, NULL, 0, 0);
+    rectfill(rectangle, 0, 0, width, height, color);
+    blit(rectangle, screen, 0, 0, x, y, width, height);
+    destroy_bitmap(rectangle);
+}
+
+void shutdown() {
+    for (int i = 0; i < numImageAssets; i++) {
+        if (imageAssets[i].image) {
+            destroy_bitmap(imageAssets[i].image);
+        }
+    }
+    for (int i = 0; i < flameAnim.numFrames; ++i) {
+        if (flameAnim.frames[i]) destroy_bitmap(flameAnim.frames[i]);
+    }
+    if (backgroundTile) destroy_bitmap(backgroundTile);
+    if (backgroundTile2) destroy_bitmap(backgroundTile2);
+    if (buffer) destroy_bitmap(buffer);
+    allegro_exit();
+}
+#include <time.h>
+#include <unistd.h>
+// Définition des structures pour les images
+
+
+void writeBravo(BITMAP* buffer, FONT* font, int color) {
+    const char* message = "Bravo";
+    int y = 10; // Position en haut de l'écran
+    int x = MY_SCREEN_W - 10; // Position à droite de l'écran
+    textout_right_ex(backgroundTile2, font, message, x, y, color, -1);
+}
+
+
+
+void drawMenu(BITMAP *buffer) {
+    BITMAP *menuBackground = load_bitmap("backgroundldl.bmp", NULL);
+    BITMAP *settingsBackground = load_bitmap("settingsbackground.bmp", NULL);
+    BITMAP *bouttonmenusettings = load_bitmap("bouttonmenusettings.bmp", NULL);
+    BITMAP *bouttonmenuplay = load_bitmap("bouttonmenuplay.bmp", NULL);
+    BITMAP *backArrow = load_bitmap("backarrow.bmp", NULL);
+
+    if (!menuBackground || !settingsBackground || !bouttonmenusettings || !bouttonmenuplay || !backArrow) {
+        allegro_message("Erreur de chargement des images");
+        exit(-1);
+    }
+
+    char* screenFilenames[] = {"screen1.bmp", "screen2.bmp", "screen3.bmp", "screen4.bmp","screen5.bmp"};
+
+    initAndResizeAnimation(&screenAnim, screenFilenames, 5, 1.5, 120);
+
+    int inSettings = 0; // Variable to track if we are in the settings menu
+
+    while (true) {
+        if (inSettings) {
+            // Draw settings menu
+            stretch_sprite(buffer, settingsBackground, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+            stretch_sprite(buffer, backArrow, 800, 500, 500, 200);
+        } else {
+            // Draw main menu
+            stretch_sprite(buffer, menuBackground, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+            stretch_sprite(buffer, bouttonmenuplay, 800, 300, 500, 200);
+            stretch_sprite(buffer, bouttonmenusettings, 800, 500, 500, 200);
+        }
+
+        blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+        if (mouse_b & 1) { // If the left mouse button is clicked
+            if (inSettings) {
+                // Check if the back button is clicked
+                if (mouse_x >= settingsActivationZone.x && mouse_x <= settingsActivationZone.x + settingsActivationZone.width &&
+                    mouse_y >= settingsActivationZone.y && mouse_y <= settingsActivationZone.y + settingsActivationZone.height) {
+                    inSettings = 0; // Go back to main menu
+                }
+            }
+
+            else {
+                if (mouse_x >= settingsActivationZone.x && mouse_x <= settingsActivationZone.x + settingsActivationZone.width &&
+                      mouse_y >= settingsActivationZone.y && mouse_y <= settingsActivationZone.y + settingsActivationZone.height) {
+                    inSettings = 1; // Go back to main menu
+                }
+                // Check if the settings button is clicked
+                if (mouse_x >= menuActivationZone.x && mouse_x <= menuActivationZone.x + menuActivationZone.width &&
+                    mouse_y >= menuActivationZone.y && mouse_y <= menuActivationZone.y + menuActivationZone.height) {
+                    clear_to_color(buffer, makecol(0, 0, 0)); // Clear the screen to black
+                    initAndResizeAnimation(&screenAnim, screenFilenames, 5, 5, 1200);
+                    updateAnimation(&screenAnim, 3);
+
+
+                    int frameCount = 0;
+                    int maxFrames = 300; // Nombre de frames pour afficher l'animation
+
+                    while(frameCount < maxFrames) {
+                        clear_to_color(buffer, makecol(0, 0, 0)); // Clear the screen to black
+                        updateAnimation(&screenAnim, 3);
+                        drawAnimation(&screenAnim, buffer, 330, 0,1500);
+                        blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H); // Copy buffer to the screen
+                        frameCount++;
+                        rest(5); // Pause for approximately 1/30th of a second
+                    }
+                    blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H); // Copy buffer to the screen
+
+                    break;
+                }
+            }
+        }
+    }
+}
+
+bool imageBinletueDisplayed = false;
+bool imagepainDisplayed = false;
+bool imageBintomDisplayed = false;
+bool imageetoile1Displayed = false;
+bool imageetoile2Displayed = false;
+bool imageetoile3Displayed = false;
+bool imageBinsteackDisplayed = false;
+bool imagetable1_dressage1Displayed = false;
+bool imagetable1_dressage2Displayed = false;
+bool imagetable1_dressage3Displayed = false;
+bool imagetable1_dressage4Displayed = false;
+bool imagetable1_dressage5Displayed = false;
+bool imageburgerDisplayed = false;
+bool imagerenduDisplayed = true;
+
+
+int score = 0;
+void checkItemInteraction(Character* player1) {
+    static int imageState = 0;
+    static int f = 0;
+    int tiny = 0;
+    if (  imageburgerDisplayed  && !imageetoile1Displayed && key[KEY_E] && player1->x >= objectrendu.x && player1->x <= objectrendu.x + objectrendu.width &&
+        player1->y >= objectrendu.y && player1->y <= objectrendu.y + objectrendu.height) {
+        score++;
+        imageetoile1Displayed = true;
+        imageburgerDisplayed = false;
+        f = 0;
+
+    }
+    if (  imageburgerDisplayed && imageetoile1Displayed && !imageetoile2Displayed  && key[KEY_E] && player1->x >= objectrendu.x && player1->x <= objectrendu.x + objectrendu.width &&
+          player1->y >= objectrendu.y && player1->y <= objectrendu.y + objectrendu.height) {
+        score++;
+        imageetoile2Displayed = true;
+        imageburgerDisplayed = false;
+        f = 0;
+
+    }
+    if (  imageburgerDisplayed && imageetoile1Displayed  && imageetoile2Displayed&& key[KEY_E] && player1->x >= objectrendu.x && player1->x <= objectrendu.x + objectrendu.width &&
+          player1->y >= objectrendu.y && player1->y <= objectrendu.y + objectrendu.height) {
+        score++;
+        imageetoile3Displayed = true;
+        imageburgerDisplayed = false;
+        f = 0;
+
+    }
+
+    if (key[KEY_E] && player1->x >= objectBinlettue.x && player1->x <= objectBinlettue.x + objectBinlettue.width &&
+                     player1->y >= objectBinlettue.y && player1->y <= objectBinlettue.y + objectBinlettue.height) {
+
+        if (!imageBintomDisplayed && !imageBinsteackDisplayed && !imagepainDisplayed) {
+            imageBinletueDisplayed = !imageBinletueDisplayed;
+
+        }
+    }
+
+    if (key[KEY_E] && player1->x >= objectBintom.x && player1->x <= objectBintom.x + objectBintom.width &&
+        player1->y >= objectBintom.y && player1->y <= objectBintom.y + objectBintom.height) {
+
+        if (!imageBinletueDisplayed && !imageBinsteackDisplayed && !imagepainDisplayed) {
+            imageBintomDisplayed = !imageBintomDisplayed;
+        }
+    }
+    if (key[KEY_SPACE] && player1->x >= objecttable1dressage1.x && player1->x <= objecttable1dressage1.x + objecttable1dressage1.width &&
+        player1->y >= objecttable1dressage1.y && player1->y <= objecttable1dressage1.y + objecttable1dressage1.height && imagetable1_dressage4Displayed) {
+        if (f = 4) {
+            imagetable1_dressage4Displayed = false;
+            rest(5);
+
+            imagetable1_dressage5Displayed = true;
+        }
+
+    }
+    if (key[KEY_E] && player1->x >= objectBinsteack.x && player1->x <= objectBinsteack.x + objectBinsteack.width &&
+        player1->y >= objectBinsteack.y && player1->y <= objectBinsteack.y + objectBinsteack.height) {
+
+        if (!imageBinletueDisplayed && !imageBintomDisplayed && !imagepainDisplayed) {
+            imageBinsteackDisplayed = !imageBinsteackDisplayed;
+        }
+    }
+    if (key[KEY_E] && player1->x >= objectpain.x && player1->x <= objectpain.x + objectpain.width &&
+        player1->y >= objectpain.y && player1->y <= objectpain.y + objectpain.height) {
+
+        if (!imageBinletueDisplayed && !imageBintomDisplayed && !imageBinsteackDisplayed) {
+            imagepainDisplayed = !imagepainDisplayed;
+        }
+    }
+    if ( imagetable1_dressage5Displayed && key[KEY_E] && player1->x >= objecttable1dressage1.x && player1->x <= objecttable1dressage1.x + objecttable1dressage1.width &&
+        player1->y >= objecttable1dressage1.y && player1->y <= objecttable1dressage1.y + objecttable1dressage1.height) {
+
+        if (!imageBinletueDisplayed && !imageBintomDisplayed && !imageBinsteackDisplayed && !imagepainDisplayed) {
+            imagetable1_dressage5Displayed = false;
+            imageburgerDisplayed = !imageburgerDisplayed;
+        }
+    }
+
+    if (key[KEY_E] && player1->x >= objecttable1dressage1.x && player1->x <= objecttable1dressage1.x + objecttable1dressage1.width &&
+        player1->y >= objecttable1dressage1.y && player1->y <= objecttable1dressage1.y + objecttable1dressage1.height) {
+
+
+
+        if(imagepainDisplayed && imagetable1_dressage2Displayed == FALSE && imagetable1_dressage3Displayed == FALSE && imagetable1_dressage4Displayed == FALSE && imagetable1_dressage5Displayed == FALSE){
+            f=1;
+            imagetable1_dressage1Displayed = true;
+            imagepainDisplayed = false;
+        }
+        if(f==1 && imageBinsteackDisplayed){
+            f=2;
+
+            imagetable1_dressage1Displayed = false;
+            imagetable1_dressage2Displayed = true;
+            imageBinsteackDisplayed = false;
+        }
+        if(imageBintomDisplayed && f==2 ){
+            f=3;
+            imagetable1_dressage2Displayed = false;
+            imagetable1_dressage3Displayed = true;
+            imageBintomDisplayed = false;
+        }
+        if(imageBinletueDisplayed && f==3){
+            f=4;
+            imagetable1_dressage3Displayed = false;
+            imagetable1_dressage4Displayed = true;
+            imageBinletueDisplayed = false;
+
+        }
+
+    }
+
+
+}
+
+bool canMoveToPosition(int x, int y) {
+    // Vérifie si la position est dans les limites de la carte
+    if (x < 0 || x >= MY_SCREEN_W || y < 0 || y >= MY_SCREEN_H) {
+        return false;
+    }
+
+    // Vérifie si la position est traversable
+    if (collisionMap[y][x] == 1) {
+        return false;
+    }
+
+    return true;
+}
+
+#include <stdio.h>
+
+void drawScene(BITMAP *buffer, Character *player1, Character *player2, Character *npc) {
+    clear_to_color(buffer, makecol(255, 255, 255));
+    if (backgroundTile2) {
+        stretch_sprite(buffer, backgroundTile2, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+    }
+    if (backgroundTile) {
+        stretch_sprite(buffer, backgroundTile, 290, 220, 940, 650);
+    }
+
+
+    for (int i = 0; i < numImageAssets; i++) {
+        for (int j = 0; j < imageAssets[i].numPositions; j++) {
+            int posX = imageAssets[i].positions[j].x;
+            int posY = imageAssets[i].positions[j].y;
+            stretch_sprite(buffer, imageAssets[i].image, posX, posY, imageAssets[i].image->w * imageAssets[i].scale, imageAssets[i].image->h * imageAssets[i].scale);
+        }
+    }
+
+    updateAnimation(&flameAnim, 2);
+    drawAnimation(&flameAnim, buffer, 590, 250,3000);
+    drawAnimation(&flameAnim, buffer, 630, 250,3000);
+    drawAnimation(&flameAnim, buffer, 590, 270,3000);
+    drawAnimation(&flameAnim, buffer, 630, 270,3000);
+
+
+
+    drawAnimation(&flameAnim, buffer, 990, 250,3000);
+    drawAnimation(&flameAnim, buffer, 1030, 250,3000);
+    drawAnimation(&flameAnim, buffer, 990, 270,3000);
+    drawAnimation(&flameAnim, buffer, 1030, 270,3000);
+
+    drawAnimation(&flameAnim, buffer, 1075, 250,3000);
+    drawAnimation(&flameAnim, buffer, 1110, 250,3000);
+    drawAnimation(&flameAnim, buffer, 1075, 270,3000);
+    drawAnimation(&flameAnim, buffer, 1110, 270,3000);
+
+    updateAnimation(&burgerAnim, 3);
+    drawAnimation(&burgerAnim, buffer, 00, 00,30);
+
+    updateAnimation(&runningAnim, 3);
+    drawAnimation(&runningAnim, buffer, 1140, 240,4000);
+
+    draw_sprite(buffer, npc->sprite[npc->currentSprite], npc->x, npc->y);
+
+    draw_sprite(buffer, player1->sprite[player1->currentSprite], player1->x, player1->y);
+    draw_sprite(buffer, player2->sprite[player2->currentSprite], player2->x, player2->y);
+    player1->heldItem = malloc(sizeof(Item));
+    player2->heldItem = malloc(sizeof(Item));
+
+    if (imageBinletueDisplayed) {
+        stretch_sprite(buffer, casseroleImage, 25, 900,200,200);
+    }
+    if (imagepainDisplayed) {
+        stretch_sprite(buffer, painImage, 25, 900,200,200);
+    }
+    if (imagetable1_dressage1Displayed) {
+        stretch_sprite(buffer, table1_dressage1Image, 755, 500,70,70);
+    }
+
+    if (imagetable1_dressage2Displayed) {
+        stretch_sprite(buffer, table1_dressage2Image, 755, 500,70,70);
+    }
+    if (imagetable1_dressage3Displayed) {
+        stretch_sprite(buffer, table1_dressage3Image, 755, 500,70,70);
+    }
+    if (imagetable1_dressage4Displayed) {
+        stretch_sprite(buffer, table1_dressage4Image, 755, 500,70,70);
+    }
+    if (imagetable1_dressage5Displayed) {
+        stretch_sprite(buffer, table1_dressage5Image, 755, 500,70,70);
+    }
+    if (imageBintomDisplayed) {
+        stretch_sprite(buffer, tomateImage, 25, 900,200,200);
+    }
+    if (imagerenduDisplayed) {
+        stretch_sprite(buffer, renduImage, 1290, 420,100,100);
+    }
+    if (imageBinsteackDisplayed) {
+        stretch_sprite(buffer, steackImage, 25, 900,200,200);
+    }
+    if (imageburgerDisplayed) {
+        stretch_sprite(buffer, burgerImage, 25, 900,200,200);
+    }
+    if (imageetoile1Displayed) {
+        stretch_sprite(buffer, etoile1Image, 1700, 400,200,200);
+    }
+    if (imageetoile2Displayed) {
+        stretch_sprite(buffer, etoile2Image, 1700, 550,200,200);
+    }
+    if (imageetoile3Displayed) {
+        stretch_sprite(buffer, etoile3Image, 1700, 700,200,200);
+    }
+
+
+    blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+}
+
+
+void updateCharacter(Character *character, int keyLeft, int keyRight, int keyUp, int keyDown) {
+    character->moving = 0;
+
+    int dx = 0, dy = 0;
+    if (key[keyLeft]) { dx -= 10; character->moving = 1; }
+    if (key[keyRight]) { dx += 10; character->moving = 1; }
+    if (key[keyUp]) { dy -= 10; character->moving = 1; }
+    if (key[keyDown]) { dy += 10; character->moving = 1; }
+
+    // Check for collisions before updating the character's position
+    if (canMoveToPosition(character->x + dx, character->y + dy)) {
+        character->x += dx;
+        character->y += dy;
+    }
+
+    if (dx < 0) {
+        character->currentDirection = 4;
+    } else if (dx > 0) {
+        character->currentDirection = 6;
+    }
+    if (dy < 0) {
+        character->currentDirection = 0;
+    } else if (dy > 0) {
+        character->currentDirection = 2;
+    }
+
+    if (character->moving) {
+        character->moveTimer += 1.0 / 60.0;
+        if (character->moveTimer >= 0.2) {
+            character->moveTimer = 0;
+            character->currentSprite = (character->currentSprite % 2 == 0) ? character->currentDirection + 1 : character->currentDirection;
+        }
+    } else {
+        character->currentSprite = character->currentDirection;
+    }
+}
+
+#include <allegro.h>
+
+
+
+
+// Variable globale pour le score
+
+
+
+
+float mesurer_temps(clock_t debut, clock_t fin) {
+    return ((float) (fin - debut)) / CLOCKS_PER_SEC;
+}
+
+#include <stdio.h>
+#include <time.h>
+
+int main() {
+    init();
+
+
+    MIDI* backgroundMusic = load_midi("rapso3.mid");
+    if (!backgroundMusic) {
+        allegro_message("Impossible de charger le fichier MIDI.\n");
+    } else {
+        play_midi(backgroundMusic, 1); // Joue en boucle
+    }
+
+    Character player1, player2, npc;
+
+    BITMAP* itemImage = load_bitmap("casserole.bmp", NULL);
+    if (!itemImage) {
+        allegro_message("Erreur lors du chargement de l'image de l'objet");
+        return -1;
+    }
+
+    char* playerFilenames[8] = {
+            "hero_dos.bmp", "hero_dos2.bmp",
+            "hero_devant.bmp", "hero_devant2.bmp",
+            "hero_gauche.bmp", "hero_gauche2.bmp",
+            "hero_droit.bmp", "hero_droit2.bmp"
+    };
+
+    loadCharacterSprites(&player1, playerFilenames, SPRITE_SIZE);
+    player1.x = MY_SCREEN_W / 4;
+    player1.y = MY_SCREEN_H / 2;
+
+    loadCharacterSprites(&player2, playerFilenames, SPRITE_SIZE);
+    player2.x =  MY_SCREEN_W / 2;
+    player2.y = MY_SCREEN_H / 2;
+
+    player1.currentDirection = 0;
+    player2.currentDirection = 0;
+    npc.currentDirection = 0;
+
+    char* npcFilenames[8] = {
+            "hero_dos.bmp", "hero_dos2.bmp",
+            "hero_devant.bmp", "hero_devant2.bmp",
+            "hero_gauche.bmp", "hero_gauche2.bmp",
+            "hero_droit.bmp", "hero_droit2.bmp"
+    };
+    loadCharacterSprites(&npc, npcFilenames, SPRITE_SIZE);
+    npc.x = 500;
+    npc.y = 500;
+
+
+
+    drawMenu(buffer);
+
+
+
+
+    int running = 1;
+    while (running) {
+        clear_to_color(buffer, makecol(255, 255, 255));
+
+        writeBravo(backgroundTile2, font, makecol(0, 0, 0));
+
+
+
+        if (key[KEY_ESC]) break;
+        updateCharacter(&player1, KEY_A, KEY_D, KEY_W, KEY_S);
+        updateCharacter(&player2, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN);
+        moveNPCToTarget(&npc, 300, 800);
+
+        clear_to_color(buffer, makecol(255, 255, 255));
+        drawScene(buffer, &player1, &player2, &npc);
+        checkItemInteraction(&player1);
+         // Calculez le delta
+
+        blit(buffer, screen, 0, 0, 0, 0, MY_SCREEN_W, MY_SCREEN_H);
+
+
+
+
+        rest(20);
+    }
+
+    if (backgroundMusic) {
+        destroy_midi(backgroundMusic);
+    }
+
+    shutdown();
+    destroy_bitmap(buffer);
+    return 0;
+}
+END_OF_MAIN()
+
+
+
+
+
